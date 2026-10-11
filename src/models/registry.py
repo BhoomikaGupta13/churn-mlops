@@ -36,17 +36,19 @@ def main() -> None:
         print(f"No versions registered for '{name}' yet.")
         return
 
+    # alias -> version map (search_model_versions doesn't populate aliases in MLflow 2.x)
+    alias_map: dict[str, list[str]] = {}
+    for alias, ver in client.get_registered_model(name).aliases.items():
+        alias_map.setdefault(str(ver), []).append(alias)
+
     print(f"Registry: {name}")
     print(f"{'version':<9}{'aliases':<26}{'f1':<9}{'roc_auc':<9}model_type")
     for mv in sorted(versions, key=lambda v: int(v.version)):
         run = client.get_run(mv.run_id)
         m, p = run.data.metrics, run.data.params
+        aliases = ",".join(sorted(alias_map.get(str(mv.version), []))) or "-"
         print(
-            f"{mv.version:<9}{','.join(mv.aliases) or '-':<26}"
+            f"{mv.version:<9}{aliases:<26}"
             f"{m.get('f1', float('nan')):<9.4f}{m.get('roc_auc', float('nan')):<9.4f}"
             f"{p.get('model_type', '?')}"
         )
-
-
-if __name__ == "__main__":
-    main()

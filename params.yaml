@@ -15,7 +15,7 @@ validate:
   max_null_rate: 0.05
 
 train:
-  model_type: logistic_regression        # or logistic_regression
+  model_type: random_forest        # or logistic_regression
   random_forest:
     n_estimators: 200
     max_depth: 10

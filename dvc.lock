@@ -101,16 +101,16 @@ stages:
       size: 830
     - path: src/models/registry.py
       hash: md5
-      md5: 5174724d080444779038c885740d5aba
-      size: 1734
+      md5: 4cd10bf74dedaa852b3abc40a17f0a6c
+      size: 2016
     - path: src/models/train.py
       hash: md5
-      md5: daf7d60d9919ae9cd320b6c95b3690a6
-      size: 4464
+      md5: f955a6bf15cb9531c912b4ef4fdae48d
+      size: 5296
     params:
       params.yaml:
         train:
-          model_type: logistic_regression
+          model_type: random_forest
           random_forest:
             n_estimators: 200
             max_depth: 10
@@ -123,9 +123,9 @@ stages:
     outs:
     - path: metrics.json
       hash: md5
-      md5: 92defceab2f8554439f029f5190f31f3
-      size: 109
+      md5: 929c352e9e4b9f925e2cb88720dd7ace
+      size: 110
     - path: models/model.joblib
       hash: md5
-      md5: 7a99726a14f424f34128d25bd232dd26
-      size: 9255
+      md5: 94aa4e41ee2ebe70d84349f586f84a6c
+      size: 5826280

@@ -6,6 +6,9 @@ import subprocess
 
 import joblib
 import matplotlib
+import importlib.metadata as md
+
+import pandas as pd
 
 matplotlib.use("Agg")  # no display needed
 import matplotlib.pyplot as plt
@@ -78,6 +81,21 @@ def main() -> None:
         mlflow.set_tags(
             {"git_sha": get_git_sha(), "data_version": get_data_version(params)}
         )
+        # Log the datasets so the MLflow UI shows lineage in the "Dataset" column
+        train_ds = mlflow.data.from_pandas(
+            pd.concat([X_train, y_train], axis=1),
+            source=str(processed / "train.csv"),
+            name="train",
+            targets="Churn",
+        )
+        test_ds = mlflow.data.from_pandas(
+            pd.concat([X_test, y_test], axis=1),
+            source=str(processed / "test.csv"),
+            name="test",
+            targets="Churn",
+        )
+        mlflow.log_input(train_ds, context="training")
+        mlflow.log_input(test_ds, context="evaluation")
 
         pipeline.fit(X_train, y_train)
         metrics = compute_metrics(pipeline, X_test, y_test)
@@ -96,11 +114,15 @@ def main() -> None:
         mlflow.log_artifact(str(ROOT / "params.yaml"))
 
         signature = infer_signature(X_train, pipeline.predict(X_train))
+        pip_reqs = [
+            f"{p}=={md.version(p)}" for p in ("scikit-learn", "pandas", "numpy")
+        ]
         mlflow.sklearn.log_model(
             pipeline,
             artifact_path="model",
             signature=signature,
             registered_model_name=name,
+            pip_requirements=pip_reqs,
         )
         run_id = run.info.run_id
 
