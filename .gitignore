@@ -1,0 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.ruff_cache/
+
+# MLflow local stores
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Secrets
+.env
+
+# Monitoring outputs (generated)
+data/monitoring/*
+!data/monitoring/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
