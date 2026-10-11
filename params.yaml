@@ -1,0 +1,14 @@
+data:
+  raw_path: data/raw/telco_churn.csv
+  batches_dir: data/batches
+  reference_path: data/batches/reference.csv
+  latest_path: data/batches/latest.csv
+  test_size: 0.2
+  random_state: 42
+
+ingest:
+  reference_fraction: 0.6   # 60% becomes the training/reference set
+  n_batches: 4              # remaining 40% is split into this many "monthly" batches
+
+validate:
+  max_null_rate: 0.05
