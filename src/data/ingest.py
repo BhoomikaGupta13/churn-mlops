@@ -28,7 +28,10 @@ def main() -> None:
     reference.to_csv(ROOT / data_cfg["reference_path"], index=False)
     print(f"reference.csv -> {len(reference)} rows")
 
-    batches = np.array_split(incoming, ing_cfg["n_batches"])
+    batches = [
+        incoming.iloc[idx]
+        for idx in np.array_split(np.arange(len(incoming)), ing_cfg["n_batches"])
+    ]
     for i, batch in enumerate(batches, start=1):
         batch.to_csv(out_dir / f"batch_{i}.csv", index=False)
         print(f"batch_{i}.csv -> {len(batch)} rows")

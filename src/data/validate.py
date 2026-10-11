@@ -1,6 +1,9 @@
 """Data quality checks. Exits non-zero if the data is not fit for training."""
 
+import argparse
+import json
 import sys
+from pathlib import Path
 
 import pandas as pd
 
@@ -71,10 +74,20 @@ def validate_dataframe(df: pd.DataFrame, max_null_rate: float = 0.05) -> list[st
     return errors
 
 
-def main(path: str) -> int:
+def main(path: str, report_path: str | None = None) -> int:
     params = load_params()
     df = pd.read_csv(path)
     errors = validate_dataframe(df, params["validate"]["max_null_rate"])
+
+    if report_path:
+        report = Path(report_path)
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(
+            json.dumps(
+                {"path": path, "rows": len(df), "passed": not errors, "errors": errors},
+                indent=2,
+            )
+        )
 
     if errors:
         print(f"VALIDATION FAILED for {path}")
@@ -87,7 +100,8 @@ def main(path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python -m src.data.validate <csv_path>")
-        sys.exit(2)
-    sys.exit(main(sys.argv[1]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path")
+    parser.add_argument("--report", default=None)
+    args = parser.parse_args()
+    sys.exit(main(args.path, args.report))

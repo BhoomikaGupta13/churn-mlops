@@ -1,0 +1,57 @@
+stages:
+  ingest:
+    cmd: python -m src.data.ingest
+    deps:
+      - src/config.py
+      - src/data/ingest.py
+      - data/raw/telco_churn.csv
+    params:
+      - data.raw_path
+      - data.batches_dir
+      - data.reference_path
+      - data.latest_path
+      - data.random_state
+      - ingest
+    outs:
+      - data/batches
+
+  validate:
+    cmd: python -m src.data.validate data/batches/reference.csv --report reports/validation.json
+    deps:
+      - src/data/validate.py
+      - data/batches/reference.csv
+    params:
+      - validate
+    outs:
+      - reports/validation.json
+
+  preprocess:
+    cmd: python -m src.data.preprocess
+    deps:
+      - src/data/preprocess.py
+      - src/features.py
+      - data/batches/reference.csv
+      - reports/validation.json      # ensures validation ran (and passed) first
+    params:
+      - data.reference_path
+      - data.processed_dir
+      - data.test_size
+      - data.random_state
+    outs:
+      - data/processed
+
+  train:
+    cmd: python -m src.models.train
+    deps:
+      - src/models/train.py
+      - src/models/evaluate.py
+      - src/models/registry.py
+      - src/features.py
+      - data/processed
+    params:
+      - train
+    metrics:
+      - metrics.json:
+          cache: false
+    outs:
+      - models/model.joblib

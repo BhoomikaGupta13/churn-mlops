@@ -1,0 +1,131 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python -m src.data.ingest
+    deps:
+    - path: data/raw/telco_churn.csv
+      hash: md5
+      md5: 3b0bfab28a8101b4e4fdd08025a5c235
+      size: 970457
+    - path: src/config.py
+      hash: md5
+      md5: a8a36010c42bc70fedc4fa9de6833cec
+      size: 298
+    - path: src/data/ingest.py
+      hash: md5
+      md5: 057be870ecdbefa9b98d6bbf4607d413
+      size: 1409
+    params:
+      params.yaml:
+        data.batches_dir: data/batches
+        data.latest_path: data/batches/latest.csv
+        data.random_state: 42
+        data.raw_path: data/raw/telco_churn.csv
+        data.reference_path: data/batches/reference.csv
+        ingest:
+          reference_fraction: 0.6
+          n_batches: 4
+    outs:
+    - path: data/batches
+      hash: md5
+      md5: fd0ae8bae96da4a6aa8b32b9f41885b5.dir
+      size: 1079141
+      nfiles: 6
+  validate:
+    cmd: python -m src.data.validate data/batches/reference.csv --report 
+      reports/validation.json
+    deps:
+    - path: data/batches/reference.csv
+      hash: md5
+      md5: 4aaae08f88cebad8cc4f5de83b5b705c
+      size: 583794
+    - path: src/data/validate.py
+      hash: md5
+      md5: 9b5fc5a9a5447ea92ffb165309e1ab06
+      size: 3236
+    params:
+      params.yaml:
+        validate:
+          max_null_rate: 0.05
+    outs:
+    - path: reports/validation.json
+      hash: md5
+      md5: 57a7c63de8df8086d6c1105a0af0a637
+      size: 97
+  preprocess:
+    cmd: python -m src.data.preprocess
+    deps:
+    - path: data/batches/reference.csv
+      hash: md5
+      md5: 4aaae08f88cebad8cc4f5de83b5b705c
+      size: 583794
+    - path: reports/validation.json
+      hash: md5
+      md5: 57a7c63de8df8086d6c1105a0af0a637
+      size: 97
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: d1b9db805a4e364b0dacecf0a7f82458
+      size: 990
+    - path: src/features.py
+      hash: md5
+      md5: 5ef99cb31c5b8afc9ed233086cb89d00
+      size: 1900
+    params:
+      params.yaml:
+        data.processed_dir: data/processed
+        data.random_state: 42
+        data.reference_path: data/batches/reference.csv
+        data.test_size: 0.2
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: b30783cfb34a6dee93dee9cb4ff9a5bc.dir
+      size: 532196
+      nfiles: 2
+  train:
+    cmd: python -m src.models.train
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: b30783cfb34a6dee93dee9cb4ff9a5bc.dir
+      size: 532196
+      nfiles: 2
+    - path: src/features.py
+      hash: md5
+      md5: 5ef99cb31c5b8afc9ed233086cb89d00
+      size: 1900
+    - path: src/models/evaluate.py
+      hash: md5
+      md5: d9714f003ba60998a470216d309a9047
+      size: 830
+    - path: src/models/registry.py
+      hash: md5
+      md5: 5174724d080444779038c885740d5aba
+      size: 1734
+    - path: src/models/train.py
+      hash: md5
+      md5: daf7d60d9919ae9cd320b6c95b3690a6
+      size: 4464
+    params:
+      params.yaml:
+        train:
+          model_type: logistic_regression
+          random_forest:
+            n_estimators: 200
+            max_depth: 10
+            min_samples_leaf: 5
+            class_weight: balanced
+          logistic_regression:
+            C: 1.0
+            max_iter: 500
+            class_weight: balanced
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 92defceab2f8554439f029f5190f31f3
+      size: 109
+    - path: models/model.joblib
+      hash: md5
+      md5: 7a99726a14f424f34128d25bd232dd26
+      size: 9255

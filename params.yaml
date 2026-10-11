@@ -3,12 +3,35 @@ data:
   batches_dir: data/batches
   reference_path: data/batches/reference.csv
   latest_path: data/batches/latest.csv
+  processed_dir: data/processed
   test_size: 0.2
   random_state: 42
 
 ingest:
-  reference_fraction: 0.6   # 60% becomes the training/reference set
-  n_batches: 4              # remaining 40% is split into this many "monthly" batches
+  reference_fraction: 0.6
+  n_batches: 4
 
 validate:
   max_null_rate: 0.05
+
+train:
+  model_type: logistic_regression        # or logistic_regression
+  random_forest:
+    n_estimators: 200
+    max_depth: 10
+    min_samples_leaf: 5
+    class_weight: balanced
+  logistic_regression:
+    C: 1.0
+    max_iter: 500
+    class_weight: balanced
+
+promotion:                          # used in Milestone 5
+  primary_metric: f1
+  min_improvement: 0.01
+  min_absolute_f1: 0.55
+
+mlflow:
+  tracking_uri: http://127.0.0.1:5000
+  experiment_name: churn-prediction
+  registered_model_name: churn-classifier
