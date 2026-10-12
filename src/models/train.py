@@ -1,19 +1,17 @@
 """Train the churn model, log everything to MLflow, register it, and write metrics.json."""
 
+import importlib.metadata as md
 import json
 import os
 import subprocess
+import time
 
 import joblib
 import matplotlib
-import importlib.metadata as md
-
-import pandas as pd
-
-matplotlib.use("Agg")  # no display needed
 import matplotlib.pyplot as plt
 import mlflow
 import mlflow.sklearn
+import pandas as pd
 import yaml
 from mlflow.models import infer_signature
 from sklearn.ensemble import RandomForestClassifier
@@ -24,6 +22,15 @@ from src.config import ROOT, load_params
 from src.features import build_pipeline
 from src.models.evaluate import compute_metrics, load_xy
 from src.models.registry import get_alias_version, get_client, resolve_tracking_uri
+
+matplotlib.use("Agg")  # no display needed
+
+_T0 = time.perf_counter()
+
+
+def lap(label: str) -> None:
+    """Print elapsed seconds since the script started (temporary profiling aid)."""
+    print(f"[timing] {label}: {time.perf_counter() - _T0:.1f}s", flush=True)
 
 
 def build_model(params: dict):
@@ -64,6 +71,7 @@ def main() -> None:
     processed = ROOT / params["data"]["processed_dir"]
     X_train, y_train = load_xy(processed / "train.csv")
     X_test, y_test = load_xy(processed / "test.csv")
+    lap("data loaded")
 
     tracking_uri = resolve_tracking_uri(params)
     mlflow.set_tracking_uri(tracking_uri)
@@ -81,6 +89,7 @@ def main() -> None:
         mlflow.set_tags(
             {"git_sha": get_git_sha(), "data_version": get_data_version(params)}
         )
+
         # Log the datasets so the MLflow UI shows lineage in the "Dataset" column
         train_ds = mlflow.data.from_pandas(
             pd.concat([X_train, y_train], axis=1),
@@ -98,8 +107,11 @@ def main() -> None:
         mlflow.log_input(test_ds, context="evaluation")
 
         pipeline.fit(X_train, y_train)
+        lap("fit done")
+
         metrics = compute_metrics(pipeline, X_test, y_test)
         mlflow.log_metrics(metrics)
+        lap("metrics logged")
 
         fig, ax = plt.subplots(figsize=(5, 4))
         ConfusionMatrixDisplay.from_estimator(pipeline, X_test, y_test, ax=ax)
@@ -110,6 +122,7 @@ def main() -> None:
         RocCurveDisplay.from_estimator(pipeline, X_test, y_test, ax=ax)
         mlflow.log_figure(fig, "roc_curve.png")
         plt.close(fig)
+        lap("figures logged")
 
         mlflow.log_artifact(str(ROOT / "params.yaml"))
 
@@ -124,6 +137,7 @@ def main() -> None:
             registered_model_name=name,
             pip_requirements=pip_reqs,
         )
+        lap("log_model done")
         run_id = run.info.run_id
 
     # --- registry aliases ---
@@ -133,6 +147,7 @@ def main() -> None:
     if get_alias_version(client, name, "champion") is None:
         client.set_registered_model_alias(name, "champion", version)
         print(f"No champion existed -> version {version} is now champion (bootstrap)")
+    lap("aliases set")
 
     # --- outputs DVC tracks ---
     (ROOT / "metrics.json").write_text(json.dumps(metrics, indent=2))

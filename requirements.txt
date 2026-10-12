@@ -10,4 +10,16 @@ pydantic==2.*
 prometheus-client==0.20.*
 pyyaml
 joblib
+sqlalchemy>=2.0.40,<2.1
 matplotlib
+pandas==2.2.*
+numpy==1.26.*
+scikit-learn==1.5.*
+mlflow-skinny==2.16.2
+fastapi==0.115.*
+uvicorn[standard]==0.30.*
+pydantic==2.*
+prometheus-client==0.20.*
+pyyaml
+joblib
+cloudpickle
