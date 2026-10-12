@@ -1,4 +1,6 @@
 [core]
-    remote = storage
+    remote = dagshub
 ['remote "storage"']
     url = C:\churn-dvc-storage
+['remote "dagshub"']
+    url = https://dagshub.com/BhoomikaGupta13/churn-mlops.dvc
