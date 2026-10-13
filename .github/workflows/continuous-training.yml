@@ -1,0 +1,112 @@
+name: Continuous Training
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"          # every Monday 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      simulate_drift:
+        description: "Demo: inject drift into a batch before checking"
+        type: boolean
+        default: false
+      force_retrain:
+        description: "Retrain even if no drift is detected"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuous-training
+  cancel-in-progress: false
+
+jobs:
+  monitor-and-retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USER }}/churn-mlops.mlflow
+      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USER }}
+      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+      API_RELOAD_URL: ${{ secrets.API_RELOAD_URL }}
+      RELOAD_API_KEY: ${{ secrets.RELOAD_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure DVC remote credentials
+        env:
+          DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc remote modify dagshub --local auth basic
+          dvc remote modify dagshub --local user "$DAGSHUB_USER"
+          dvc remote modify dagshub --local password "$DAGSHUB_TOKEN"
+
+      - name: Pull data
+        run: dvc pull
+
+      - name: Choose the batch to check
+        id: batch
+        env:
+          SIMULATE: ${{ github.event.inputs.simulate_drift }}
+        run: |
+          if [ "$SIMULATE" = "true" ]; then
+            python -m src.monitoring.simulate_drift \
+              --input data/batches/batch_2.csv --output data/simulated/current.csv
+            echo "path=data/simulated/current.csv" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=data/batches/latest.csv" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate the batch
+        env:
+          BATCH: ${{ steps.batch.outputs.path }}
+        run: python -m src.data.validate "$BATCH"
+
+      - name: Drift check
+        id: drift
+        env:
+          BATCH: ${{ steps.batch.outputs.path }}
+        run: |
+          python -m src.monitoring.drift --current "$BATCH"
+          echo "detected=$(jq -r .drift_detected data/monitoring/drift_summary.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Retrain challenger
+        id: retrain
+        if: steps.drift.outputs.detected == 'true' || github.event.inputs.force_retrain == 'true'
+        env:
+          BATCH: ${{ steps.batch.outputs.path }}
+          TRIGGER: ${{ github.event_name }}
+        run: python -m src.models.retrain --new-data "$BATCH" --trigger "$TRIGGER"
+
+      - name: Promotion gate
+        id: gate
+        if: steps.retrain.outcome == 'success'
+        run: python -m src.models.promote
+
+      - name: Reload the API
+        if: steps.gate.outputs.promoted == 'true' && env.API_RELOAD_URL != ''
+        run: |
+          curl -fsS -X POST -H "X-API-Key: $RELOAD_API_KEY" "$API_RELOAD_URL/model/reload"
+
+      - name: Summary
+        if: always()
+        run: python -m src.monitoring.summarize
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drift-and-decision-reports
+          path: data/monitoring/
+          if-no-files-found: ignore
