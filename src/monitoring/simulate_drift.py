@@ -4,6 +4,7 @@ import argparse
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 
 def inject_drift(df: pd.DataFrame, seed: int = 0) -> pd.DataFrame:
@@ -38,6 +39,7 @@ def main() -> None:
 
     df = pd.read_csv(args.input)
     drifted = inject_drift(df, args.seed)
+    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     drifted.to_csv(args.output, index=False)
     print(f"Wrote drifted data ({len(drifted)} rows) -> {args.output}")
 

@@ -35,3 +35,10 @@ mlflow:
   tracking_uri: http://127.0.0.1:5000
   experiment_name: churn-prediction
   registered_model_name: churn-classifier
+
+drift:
+  share_drifted_features_threshold: 0.2   # retrain if >= 20% of features drifted
+  output_dir: data/monitoring
+
+retrain:
+  new_data_eval_fraction: 0.5             # half of the new batch is held out for evaluation
